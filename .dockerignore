@@ -1,0 +1,8 @@
+.git
+.idea/
+target/
+build/
+out/
+*.class
+*.jar
+!target/*.jar
