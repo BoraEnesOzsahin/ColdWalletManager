@@ -1,9 +1,10 @@
 package com.ayrotek.coldwalletmanagerservice.service;
 
+import com.ayrotek.coldwalletmanagerservice.entity.Wallet;
+import com.ayrotek.coldwalletmanagerservice.repository.WalletRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.web3j.crypto.Keys;
-import org.web3j.crypto.RawTransaction;
-import org.web3j.crypto.TransactionEncoder;
 import org.web3j.utils.Numeric;
 
 import javax.security.auth.callback.Callback;
@@ -14,23 +15,22 @@ import java.security.AuthProvider;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
-import java.security.PrivateKey;
 import java.security.Provider;
-import java.security.Signature;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECPoint;
-
-/** RECONFIGURE SOFTHSM2 (Option 2: Install SoftHSM in your Spring Boot App's Container (Recommended for Java))*/
+import java.time.LocalDateTime;
 
 @Service
 public class ColdWalletService {
 
     private final Provider pkcs11Provider;
+    private final WalletRepository walletRepository;
     private static final char[] PIN = "1234".toCharArray();
 
-    public ColdWalletService(Provider pkcs11Provider) {
+    public ColdWalletService(Provider pkcs11Provider, WalletRepository walletRepository) {
         this.pkcs11Provider = pkcs11Provider;
+        this.walletRepository = walletRepository;
     }
 
     public KeyPair generateECKeyPair() throws Exception {
@@ -93,14 +93,42 @@ public class ColdWalletService {
         return "0x" + addressHex;
     }
 
+    public String getPublicKeyHex(KeyPair keyPair) {
+        if (!(keyPair.getPublic() instanceof ECPublicKey ecPublicKey)) {
+            throw new IllegalArgumentException("Public key is not an EC public key.");
+        }
+
+        ECPoint ecPoint = ecPublicKey.getW();
+        BigInteger x = ecPoint.getAffineX();
+        BigInteger y = ecPoint.getAffineY();
+
+        byte[] xBytes = Numeric.toBytesPadded(x, 32);
+        byte[] yBytes = Numeric.toBytesPadded(y, 32);
+        byte[] publicKeyBytes = new byte[64];
+        System.arraycopy(xBytes, 0, publicKeyBytes, 0, 32);
+        System.arraycopy(yBytes, 0, publicKeyBytes, 32, 32);
+        
+        // The uncompressed format prefix is 0x04, so we prepend it
+        return "0x04" + Numeric.toHexStringNoPrefix(publicKeyBytes);
+    }
+
     /**
-     * Generates a new EC key pair using the PKCS11 provider and derives its Ethereum address.
+     * Generates a new EC key pair using the PKCS11 provider, derives its Ethereum address,
+     * and saves it to the database.
      *
-     * @return The newly generated Ethereum address as a hex string with a "0x" prefix.
+     * @param name The logical name of the wallet (e.g. "Company treasure wallet")
+     * @return The newly generated Wallet entity.
      * @throws Exception if key generation fails.
      */
-    public String generateNewWalletAddress() throws Exception {
+    @Transactional
+    public Wallet generateNewWalletAddress(String name) throws Exception {
         KeyPair keyPair = generateECKeyPair();
-        return getAddressFromKey(keyPair);
+        String address = getAddressFromKey(keyPair);
+        String publicKeyHex = getPublicKeyHex(keyPair);
+        
+        LocalDateTime now = LocalDateTime.now();
+
+        Wallet wallet = new Wallet(name, address, publicKeyHex, now);
+        return walletRepository.save(wallet);
     }
 }

@@ -1,4 +1,4 @@
-package com.ayrotek.coldwalletmanagerservice.controller;
+package com.ayrotek.coldwalletmanagerservice.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
