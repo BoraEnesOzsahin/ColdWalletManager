@@ -6,9 +6,14 @@ import org.web3j.crypto.RawTransaction;
 import org.web3j.crypto.TransactionEncoder;
 import org.web3j.utils.Numeric;
 
+import javax.security.auth.callback.Callback;
+import javax.security.auth.callback.CallbackHandler;
+import javax.security.auth.callback.PasswordCallback;
 import java.math.BigInteger;
+import java.security.AuthProvider;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.Signature;
@@ -22,12 +27,31 @@ import java.security.spec.ECPoint;
 public class ColdWalletService {
 
     private final Provider pkcs11Provider;
+    private static final char[] PIN = "1234".toCharArray();
 
     public ColdWalletService(Provider pkcs11Provider) {
         this.pkcs11Provider = pkcs11Provider;
     }
 
     public KeyPair generateECKeyPair() throws Exception {
+        // Log in to the token using KeyStore.load before attempting to generate keys
+        KeyStore keyStore = KeyStore.getInstance("PKCS11", pkcs11Provider);
+        keyStore.load(null, PIN);
+        
+        // Ensure the provider is logged in
+        if (pkcs11Provider instanceof AuthProvider) {
+            ((AuthProvider) pkcs11Provider).login(null, new CallbackHandler() {
+                @Override
+                public void handle(Callback[] callbacks) {
+                    for (Callback callback : callbacks) {
+                        if (callback instanceof PasswordCallback) {
+                            ((PasswordCallback) callback).setPassword(PIN);
+                        }
+                    }
+                }
+            });
+        }
+
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", pkcs11Provider);
         // Ethereum uses the secp256k1 curve
         ECGenParameterSpec ecSpec = new ECGenParameterSpec("secp256k1");
