@@ -20,6 +20,9 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432:5432'
+    ##THIS IS TO SAVE DATA EVEN AFTER WE DELETE OUR DOCKER CONTAINERS
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
 
   softhsm:
     image: 'vegardit/softhsm2-pkcs11-proxy:latest'
@@ -30,8 +33,11 @@ services:
       - TOKEN_SO_PIN=123456
       - TOKEN_IMPORT_TEST_DATA=0
       - PKCS11_DAEMON_SOCKET=tcp://0.0.0.0:2345
+
+    ##THIS IS TO SAVE DATA EVEN AFTER WE DELETE OUR DOCKER CONTAINERS
     volumes:
       - softhsm-tokens:/var/lib/softhsm/tokens
 
 volumes:
   softhsm-tokens:
+  postgres-data:

@@ -1,2 +1,2 @@
-our first address: 0xc0dfc2ba6b6bea446e1965fd17d769111df45702
-second : 0x245136d55d223571132da401a365ef2a21c6a710
+our first address: 0xf2c90719e84b7894154f353cfe8ae17637404903
+docker compose exec postgres psql -U myuser -d mydatabase secret to connect to the db in docker

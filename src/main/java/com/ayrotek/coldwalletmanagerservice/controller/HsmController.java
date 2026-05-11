@@ -36,7 +36,7 @@ public class HsmController {
     @PostMapping("/sign")
     public String signTransaction(@RequestBody SignTransactionRequest request) throws Exception {
         // 0. Check if the wallet exists
-        Wallet wallet = walletRepository.findByAddress(request.getAddress())
+        Wallet wallet = walletRepository.findByAddressIgnoreCase(request.getAddress())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found for address: " + request.getAddress()));
 
         // 1. Fetch KeyPair (PrivateKey and ECPublicKey) from HSM using request.getAddress()
