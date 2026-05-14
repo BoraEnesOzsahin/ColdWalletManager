@@ -28,6 +28,9 @@ public class Wallet {
     @Column(name = "generation_time", nullable = false)
     private LocalDateTime generationTime;
 
+    @Column(name = "hsm_alias", unique = true)
+    private String hsmAlias;
+
     // Constructors
     public Wallet() {
     }
@@ -78,5 +81,13 @@ public class Wallet {
 
     public void setGenerationTime(LocalDateTime generationTime) {
         this.generationTime = generationTime;
+    }
+
+    public String getHsmAlias() {
+        return hsmAlias;
+    }
+
+    public void setHsmAlias(String hsmAlias) {
+        this.hsmAlias = hsmAlias;
     }
 }

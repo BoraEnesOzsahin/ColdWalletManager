@@ -5,7 +5,7 @@ import com.ayrotek.coldwalletmanagerservice.dto.WalletGenerationRequest;
 import com.ayrotek.coldwalletmanagerservice.entity.Wallet;
 import com.ayrotek.coldwalletmanagerservice.repository.WalletRepository;
 import com.ayrotek.coldwalletmanagerservice.service.CheckBalanceService;
-import com.ayrotek.coldwalletmanagerservice.service.ColdWalletService;
+import com.ayrotek.coldwalletmanagerservice.service.VaultWalletService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,21 +22,21 @@ import java.util.List;
 @RequestMapping("/api/v1/wallets")
 public class WalletController {
 
-    private final ColdWalletService coldWalletService;
+    private final VaultWalletService vaultWalletService;
     private final WalletRepository walletRepository;
     private final CheckBalanceService checkBalanceService;
 
-    public WalletController(ColdWalletService coldWalletService, 
+    public WalletController(VaultWalletService vaultWalletService, 
                             WalletRepository walletRepository,
                             CheckBalanceService checkBalanceService) {
-        this.coldWalletService = coldWalletService;
+        this.vaultWalletService = vaultWalletService;
         this.walletRepository = walletRepository;
         this.checkBalanceService = checkBalanceService;
     }
 
     @PostMapping("/generate")
     public Wallet generateWallet(@RequestBody WalletGenerationRequest request) throws Exception {
-        return coldWalletService.generateNewWalletAddress(request.getName());
+        return vaultWalletService.generateNewWalletAddress(request.getName());
     }
 
     @GetMapping("/allWallets")
@@ -46,9 +46,6 @@ public class WalletController {
 
     @GetMapping("/{address}/balance")
     public BalanceResponse getWalletBalance(@PathVariable String address) {
-        // Validate if we actually own this wallet in our database.
-        // We use findByAddressIgnoreCase because Ethereum addresses are case-insensitive
-        // (the mixed case is just an optional checksum).
         walletRepository.findByAddressIgnoreCase(address)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Wallet not found for address: " + address));
 
