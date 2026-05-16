@@ -4,9 +4,9 @@ import java.math.BigInteger;
 
 public class SignTransactionRequest {
     private String address;
-    private BigInteger nonce;
-    private BigInteger gasPrice;
-    private BigInteger gasLimit;
+    private BigInteger nonce; // Optional now
+    private BigInteger gasPrice; // Optional now
+    private BigInteger gasLimit; // Optional now
     private String to;
     private BigInteger value;
     private String data;
