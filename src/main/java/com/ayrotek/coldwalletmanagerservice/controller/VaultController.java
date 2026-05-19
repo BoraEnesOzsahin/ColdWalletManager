@@ -15,8 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.RawTransaction;
 import org.web3j.crypto.TransactionEncoder;
+import org.web3j.utils.Convert;
 import org.web3j.utils.Numeric;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 @RestController
@@ -48,20 +50,40 @@ public class VaultController {
         // 2. Retrieve the key pair from Vault
         ECKeyPair ecKeyPair = vaultKeyRetrievalService.getKeyPairFromVault(wallet.getHsmAlias());
 
+        // Convert the requested value (in ETC/Ether) to Wei
+        BigInteger valueInWei = BigInteger.ZERO;
+        if (request.getValue() != null) {
+            valueInWei = Convert.toWei(request.getValue(), Convert.Unit.ETHER).toBigInteger();
+        }
+
         // 3. Fetch missing details from the network if not provided in the request
         BigInteger nonce = request.getNonce();
         if (nonce == null) {
             nonce = checkBalanceService.getTransactionCount(request.getAddress());
         }
 
-        BigInteger gasPrice = request.getGasPrice();
-        if (gasPrice == null) {
-            gasPrice = checkBalanceService.getGasPrice();
+        BigInteger gasPrice;
+        // Always fetch the current gas price and increase it by 20% to handle replacements
+        BigInteger currentGasPrice = checkBalanceService.getGasPrice();
+        gasPrice = currentGasPrice.multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100));
+
+        // If the user provided a gas price, use the higher of the two
+        if (request.getGasPrice() != null && request.getGasPrice().compareTo(gasPrice) > 0) {
+            gasPrice = request.getGasPrice();
         }
 
+
         BigInteger gasLimit = request.getGasLimit();
-        if (gasLimit == null) {
-            gasLimit = BigInteger.valueOf(21000); // Default gas limit for standard ETH transfers
+        // If gasLimit is not provided or is zero, estimate it
+        if (gasLimit == null || gasLimit.compareTo(BigInteger.ZERO) <= 0) {
+            gasLimit = checkBalanceService.estimateGas(
+                request.getAddress(), // from address
+                request.getTo(),
+                valueInWei, // Use the converted Wei value
+                request.getData()
+            );
+            // Add a buffer to the estimated gas for safety (e.g., 20%)
+            gasLimit = gasLimit.multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100));
         }
 
         // 4. Create the RawTransaction
@@ -70,7 +92,7 @@ public class VaultController {
                 gasPrice,
                 gasLimit,
                 request.getTo(),
-                request.getValue(),
+                valueInWei, // Use the converted Wei value
                 request.getData() != null ? request.getData() : ""
         );
 

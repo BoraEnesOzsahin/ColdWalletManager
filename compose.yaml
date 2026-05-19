@@ -8,10 +8,24 @@ services:
       - SPRING_DATASOURCE_USERNAME=myuser
       - SPRING_DATASOURCE_PASSWORD=secret
       - SPRING_CLOUD_VAULT_URI=http://vault:8200
-      - SPRING_CLOUD_VAULT_TOKEN=root
     depends_on:
-      - postgres
-      - vault
+      vault-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_started
+    volumes:
+      - vault-data:/vault/file # Mount vault-data to read ROLE_ID and SECRET_ID
+    entrypoint: /bin/sh
+    command:
+      - "-c"
+      - |
+        while [ ! -f /vault/file/role.id ] || [ ! -f /vault/file/secret.id ]; do
+          echo 'Waiting for Vault AppRole credentials...';
+          sleep 2;
+        done;
+        export VAULT_ROLE_ID=$$(cat /vault/file/role.id)
+        export VAULT_SECRET_ID=$$(cat /vault/file/secret.id)
+        java -jar /app/app.jar
 
   postgres:
     image: 'postgres:latest'
@@ -21,18 +35,37 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432:5432'
-    ##THIS IS TO SAVE DATA EVEN AFTER WE DELETE OUR DOCKER CONTAINERS
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql
 
   vault:
     image: 'hashicorp/vault:latest'
     ports:
       - '8200:8200'
+    volumes:
+      - vault-data:/vault/file
+      - ./vault-config.json:/vault/config/vault-config.json
     environment:
       - SKIP_SETCAP=true
-      - VAULT_DEV_ROOT_TOKEN_ID=root
-      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_API_ADDR=http://vault:8200
+      - VAULT_ADDR=http://127.0.0.1:8200 # This is for the healthcheck to work internally
+    entrypoint: vault # Explicitly set entrypoint to the vault binary
+    command: server -config=/vault/config/vault-config.json
+    cap_add:
+      - IPC_LOCK
+
+  vault-init:
+    image: 'hashicorp/vault:latest'
+    depends_on:
+      vault:
+        condition: service_started # vault-init depends on vault being started, not healthy
+    volumes:
+      - vault-data:/vault/file
+      - ./vault-init.sh:/vault-init.sh
+    environment:
+      - VAULT_ADDR=http://vault:8200
+    command: ["/bin/sh", "/vault-init.sh"]
 
 volumes:
   postgres-data:
+  vault-data:

@@ -7,7 +7,9 @@ import org.web3j.utils.Numeric;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CheckBalanceService {
@@ -80,8 +82,42 @@ public class CheckBalanceService {
         return Numeric.decodeQuantity(response.result());
     }
 
+    public BigInteger estimateGas(String from, String to, BigInteger value, String data) {
+        Map<String, String> txObject = new HashMap<>();
+        txObject.put("from", from);
+        txObject.put("to", to);
+        if (value != null) {
+            txObject.put("value", Numeric.encodeQuantity(value));
+        }
+        if (data != null && !data.isEmpty()) {
+            if (!data.startsWith("0x")) {
+                data = "0x" + data;
+            }
+            txObject.put("data", data);
+        }
+
+        RpcRequest requestPayload = new RpcRequest("2.0", "eth_estimateGas", List.of(txObject), 1);
+
+        RpcResponse response = restClient.post()
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .body(requestPayload)
+                .retrieve()
+                .body(RpcResponse.class);
+
+        if (response == null || response.result() == null) {
+             String errorMsg = (response != null && response.error() != null) ? response.error().toString() : "Unknown error";
+             throw new RuntimeException("Failed to estimate gas from node. Error: " + errorMsg);
+        }
+
+        return Numeric.decodeQuantity(response.result());
+    }
+
     public String sendRawTransaction(String signedTxHex) {
         // Broadcast a signed raw transaction to the network
+        if (!signedTxHex.startsWith("0x")) {
+             signedTxHex = "0x" + signedTxHex;
+        }
         RpcRequest requestPayload = new RpcRequest("2.0", "eth_sendRawTransaction", List.of(signedTxHex), 1);
         
         RpcResponse response = restClient.post()

@@ -1,5 +1,6 @@
 package com.ayrotek.coldwalletmanagerservice.dto;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public class SignTransactionRequest {
@@ -8,7 +9,7 @@ public class SignTransactionRequest {
     private BigInteger gasPrice; // Optional now
     private BigInteger gasLimit; // Optional now
     private String to;
-    private BigInteger value;
+    private BigDecimal value; // Changed to BigDecimal
     private String data;
     private long chainId;
 
@@ -52,11 +53,11 @@ public class SignTransactionRequest {
         this.to = to;
     }
 
-    public BigInteger getValue() {
+    public BigDecimal getValue() {
         return value;
     }
 
-    public void setValue(BigInteger value) {
+    public void setValue(BigDecimal value) {
         this.value = value;
     }
 
