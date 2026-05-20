@@ -35,6 +35,7 @@ if vault status -format=json | grep -q '"initialized": false'; then
 
   # Login with root token to setup Vault
   vault login $ROOT_TOKEN
+  export VAULT_TOKEN=$ROOT_TOKEN
 
   # 1. Enable the KV v2 engine at 'secret' path
   vault secrets enable -path=secret kv-v2
@@ -43,13 +44,12 @@ if vault status -format=json | grep -q '"initialized": false'; then
   vault auth enable approle
 
   # 3. Create a policy for the Spring Boot application
-  # It only needs to create, read, and list wallets in the secret/data/wallets/* path
   cat <<EOF > /tmp/wallet-service-policy.hcl
 path "secret/data/wallets/*" {
   capabilities = ["create", "read", "update", "delete", "list"]
 }
 path "secret/metadata/wallets/*" {
-  capabilities = ["list"]
+  capabilities = ["list", "read", "delete"]
 }
 EOF
   vault policy write wallet-service-policy /tmp/wallet-service-policy.hcl

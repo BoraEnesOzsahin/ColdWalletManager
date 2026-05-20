@@ -64,7 +64,7 @@ services:
       - ./vault-init.sh:/vault-init.sh
     environment:
       - VAULT_ADDR=http://vault:8200
-    command: ["/bin/sh", "/vault-init.sh"]
+    command: ["/bin/sh", "-c", "sed -i 's/\\r$$//' /vault-init.sh || true && tr -d '\\r' < /vault-init.sh > /tmp/init.sh && sh /tmp/init.sh"]
 
 volumes:
   postgres-data:
