@@ -8,13 +8,14 @@ services:
       - SPRING_DATASOURCE_USERNAME=myuser
       - SPRING_DATASOURCE_PASSWORD=secret
       - SPRING_CLOUD_VAULT_URI=http://vault:8200
+      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka/
     depends_on:
       vault-init:
         condition: service_completed_successfully
       postgres:
         condition: service_started
     volumes:
-      - vault-data:/vault/file # Mount vault-data to read ROLE_ID and SECRET_ID
+      - vault-data:/vault/file
     entrypoint: /bin/sh
     command:
       - "-c"
@@ -26,6 +27,10 @@ services:
         export VAULT_ROLE_ID=$$(cat /vault/file/role.id)
         export VAULT_SECRET_ID=$$(cat /vault/file/secret.id)
         java -jar /app/app.jar
+    networks:
+      - app-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   postgres:
     image: 'postgres:latest'
@@ -34,9 +39,11 @@ services:
       - 'POSTGRES_PASSWORD=secret'
       - 'POSTGRES_USER=myuser'
     ports:
-      - '5432:5432'
+      - '5433:5432'
     volumes:
       - postgres-data:/var/lib/postgresql
+    networks:
+      - app-network
 
   vault:
     image: 'hashicorp/vault:latest'
@@ -48,24 +55,33 @@ services:
     environment:
       - SKIP_SETCAP=true
       - VAULT_API_ADDR=http://vault:8200
-      - VAULT_ADDR=http://127.0.0.1:8200 # This is for the healthcheck to work internally
-    entrypoint: vault # Explicitly set entrypoint to the vault binary
+      - VAULT_ADDR=http://127.0.0.1:8200
+    entrypoint: vault
     command: server -config=/vault/config/vault-config.json
     cap_add:
       - IPC_LOCK
+    networks:
+      - app-network
 
   vault-init:
     image: 'hashicorp/vault:latest'
     depends_on:
       vault:
-        condition: service_started # vault-init depends on vault being started, not healthy
+        condition: service_started
     volumes:
       - vault-data:/vault/file
       - ./vault-init.sh:/vault-init.sh
     environment:
       - VAULT_ADDR=http://vault:8200
     command: ["/bin/sh", "-c", "sed -i 's/\\r$$//' /vault-init.sh || true && tr -d '\\r' < /vault-init.sh > /tmp/init.sh && sh /tmp/init.sh"]
+    networks:
+      - app-network
 
 volumes:
   postgres-data:
   vault-data:
+
+networks:
+  app-network:
+    external: true
+    name: reckon-arc

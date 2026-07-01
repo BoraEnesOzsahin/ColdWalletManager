@@ -41,6 +41,7 @@ public class WalletController {
 
     @GetMapping("/allWallets")
     public List<Wallet> getAllWallets() {
+        System.out.println("Selamın Aleykum");
         return walletRepository.findAll();
     }
 
